@@ -1,0 +1,23 @@
+[project]
+name = "auto-fapiao"
+version = "0.1.0"
+description = "发票自动重命名和校验工具"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "paddleocr>=2.7",
+    "paddlepaddle>=2.5",
+    "pymupdf>=1.24",
+    "openpyxl>=3.1",
+    "reportlab>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
