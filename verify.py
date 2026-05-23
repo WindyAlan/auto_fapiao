@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from dataclasses import dataclass, field
@@ -7,6 +8,7 @@ from openpyxl import load_workbook
 from excel_utils import COLUMN_MAP, get_column_index, read_invoice_rows, write_cell
 from ocr import extract_invoice_fields, extract_text_from_pdf, get_ocr_confidence
 
+logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD = 0.8
 
@@ -42,6 +44,7 @@ def compare_fields(excel_row: dict, ocr_fields: dict, confidence: float) -> list
         excel_val = str(excel_row.get(key, "")).strip()
         ocr_val = str(ocr_fields.get(key, "")).strip()
         if excel_val and ocr_val and excel_val != ocr_val:
+            logger.debug("字段 '%s' 不一致: Excel='%s', OCR='%s'", label, excel_val, ocr_val)
             diffs.append(FieldDiff(
                 field_name=label,
                 excel_value=excel_val,
@@ -63,20 +66,23 @@ def resolve_party_a_id_from_filename(filename: str) -> str | None:
 
 def verify_invoices(pdf_dir: str, excel_path: str) -> list[VerifyResult]:
     """校验目录中所有PDF发票与Excel数据"""
+    logger.info("打开验证Excel: %s", excel_path)
     wb = load_workbook(excel_path)
     ws = wb.active
     excel_rows = read_invoice_rows(ws)
+    logger.info("Excel中读取到 %d 行发票数据", len(excel_rows))
 
     # 按甲方合同号索引Excel行
     excel_by_party_a = {r["party_a_id"]: r for r in excel_rows}
 
-    results = []
-    for filename in sorted(os.listdir(pdf_dir)):
-        if not filename.lower().endswith(".pdf"):
-            continue
+    pdf_files = [f for f in sorted(os.listdir(pdf_dir)) if f.lower().endswith(".pdf")]
+    logger.info("发现 %d 个PDF文件", len(pdf_files))
 
+    results = []
+    for filename in pdf_files:
         party_a_id = resolve_party_a_id_from_filename(filename)
         if not party_a_id:
+            logger.warning("文件名格式无法识别甲方合同号: %s", filename)
             results.append(VerifyResult(
                 pdf_file=filename, party_a_id="",
                 needs_manual=True,
@@ -85,6 +91,7 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> list[VerifyResult]:
 
         excel_row = excel_by_party_a.get(party_a_id)
         if not excel_row:
+            logger.warning("Excel中未找到甲方合同号: %s (文件: %s)", party_a_id, filename)
             results.append(VerifyResult(
                 pdf_file=filename, party_a_id=party_a_id,
                 needs_manual=True,
@@ -114,8 +121,16 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> list[VerifyResult]:
                     write_cell(ws, excel_row["_row_idx"], col_letter, diff.ocr_value)
                     diff.fixed = True
                     fixed = True
+                    logger.info("自动修复: %s %s, '%s' → '%s' (置信度=%.3f)",
+                                party_a_id, diff.field_name, diff.excel_value, diff.ocr_value, confidence)
             else:
                 needs_manual = True
+                logger.warning("需手动核查: %s %s, Excel='%s' OCR='%s' (置信度=%.3f, 低于阈值%.1f)",
+                               party_a_id, diff.field_name, diff.excel_value, diff.ocr_value,
+                               confidence, CONFIDENCE_THRESHOLD)
+
+        if not diffs:
+            logger.debug("✓ %s: 所有字段正确", party_a_id)
 
         results.append(VerifyResult(
             pdf_file=filename,
@@ -128,6 +143,7 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> list[VerifyResult]:
     # 保存修复后的Excel
     wb.save(excel_path)
     wb.close()
+    logger.info("验证完成，Excel已保存")
     return results
 
 

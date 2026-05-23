@@ -1,15 +1,25 @@
 import argparse
+import logging
+import sys
+
+
+def setup_logging(verbose: bool):
+    level = logging.DEBUG if verbose else logging.INFO
+    fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    logging.basicConfig(level=level, format=fmt, stream=sys.stderr)
 
 
 def cmd_rename(args):
     from contract import load_contract_index
     from rename import rename_files
 
-    print(f"加载合同号索引: {args.excel}")
-    contract_index = load_contract_index(args.excel)
-    print(f"找到 {len(contract_index)} 条合同记录")
+    logger = logging.getLogger("rename")
 
-    print(f"扫描目录: {args.dir}")
+    logger.info("加载合同号索引: %s", args.excel)
+    contract_index = load_contract_index(args.excel)
+    logger.info("找到 %d 条合同记录", len(contract_index))
+
+    logger.info("扫描目录: %s", args.dir)
     results = rename_files(args.dir, contract_index)
 
     success = sum(1 for r in results if r.status == "success")
@@ -30,8 +40,10 @@ def cmd_rename(args):
 def cmd_verify(args):
     from verify import format_report, verify_invoices
 
-    print(f"校验发票: {args.dir}")
-    print(f"对照Excel: {args.excel}")
+    logger = logging.getLogger("verify")
+
+    logger.info("校验发票: %s", args.dir)
+    logger.info("对照Excel: %s", args.excel)
     results = verify_invoices(args.dir, args.excel)
     print(format_report(results))
 
@@ -39,13 +51,16 @@ def cmd_verify(args):
 def cmd_generate_test_data(args):
     from tests.conftest import generate_all_test_data
 
-    print(f"生成测试数据到: {args.output}")
+    logger = logging.getLogger("generate")
+
+    logger.info("生成测试数据到: %s", args.output)
     generate_all_test_data(args.output)
     print("完成")
 
 
 def main():
     parser = argparse.ArgumentParser(description="发票自动重命名和校验工具")
+    parser.add_argument("-v", "--verbose", action="store_true", help="输出详细调试信息")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # rename
@@ -63,6 +78,8 @@ def main():
     p_gen.add_argument("--output", required=True, help="输出目录")
 
     args = parser.parse_args()
+    setup_logging(args.verbose)
+
     if args.command == "rename":
         cmd_rename(args)
     elif args.command == "verify":

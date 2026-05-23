@@ -1,9 +1,12 @@
+import logging
 import os
 import re
 from dataclasses import dataclass
 
 from contract import load_contract_index
 from ocr import extract_invoice_fields, extract_text_from_pdf
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,10 +32,13 @@ def classify_pdf(filename: str) -> tuple[str, str | None]:
     # Type 1: 以数字+大写字母开头（如 2100002601080A_）
     m = re.match(r"^(\d+[A-Z])_", basename)
     if m:
+        logger.debug("文件 '%s' → Type1, 乙方合同号=%s", basename, m.group(1))
         return "type1", m.group(1)
     # Type 2: 以dzfp_开头
     if basename.startswith("dzfp_"):
+        logger.debug("文件 '%s' → Type2, 需要OCR", basename)
         return "type2", None
+    logger.debug("文件 '%s' → unknown, 跳过", basename)
     return "unknown", None
 
 
@@ -44,11 +50,11 @@ def extract_invoice_number(filename: str) -> str | None:
 
 def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameResult]:
     """重命名目录中的PDF文件"""
-    results = []
-    for filename in sorted(os.listdir(pdf_dir)):
-        if not filename.lower().endswith(".pdf"):
-            continue
+    pdf_files = [f for f in sorted(os.listdir(pdf_dir)) if f.lower().endswith(".pdf")]
+    logger.info("发现 %d 个PDF文件", len(pdf_files))
 
+    results = []
+    for filename in pdf_files:
         file_type, party_b_id = classify_pdf(filename)
         old_path = os.path.join(pdf_dir, filename)
 
@@ -63,6 +69,7 @@ def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameRes
             if file_type == "type1":
                 party_a_id = contract_index.get(party_b_id, "")
                 if not party_a_id:
+                    logger.warning("索引中未找到乙方合同号: %s", party_b_id)
                     results.append(RenameResult(
                         original_name=filename, new_name="", party_a_id="",
                         party_b_id=party_b_id, status="error",
@@ -75,10 +82,12 @@ def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameRes
                 new_name = f"{party_a_id}-{party_b_id}{remainder}"
 
             else:  # type2
+                logger.info("Type2文件，开始OCR识别: %s", filename)
                 text = extract_text_from_pdf(old_path)
                 fields = extract_invoice_fields(text)
                 party_b_id = fields.get("party_b_id", "")
                 if not party_b_id:
+                    logger.warning("OCR未能识别乙方合同号: %s", filename)
                     results.append(RenameResult(
                         original_name=filename, new_name="", party_a_id="",
                         party_b_id="", status="error",
@@ -88,6 +97,7 @@ def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameRes
 
                 party_a_id = contract_index.get(party_b_id, "")
                 if not party_a_id:
+                    logger.warning("索引中未找到乙方合同号: %s", party_b_id)
                     results.append(RenameResult(
                         original_name=filename, new_name="", party_a_id="",
                         party_b_id=party_b_id, status="error",
@@ -103,6 +113,7 @@ def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameRes
 
             new_path = os.path.join(pdf_dir, new_name)
             os.rename(old_path, new_path)
+            logger.info("重命名: %s → %s", filename, new_name)
             results.append(RenameResult(
                 original_name=filename, new_name=new_name,
                 party_a_id=party_a_id, party_b_id=party_b_id,
@@ -110,6 +121,7 @@ def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameRes
             ))
 
         except Exception as e:
+            logger.error("处理文件 '%s' 时出错: %s", filename, e)
             results.append(RenameResult(
                 original_name=filename, new_name="", party_a_id="",
                 party_b_id=party_b_id or "", status="error", message=str(e)
