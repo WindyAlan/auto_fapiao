@@ -22,7 +22,7 @@ cd auto_fapiao
 uv sync
 
 # 如果需要跑测试，额外装开发依赖
-uv run sync --extra dev
+uv sync --extra dev
 ```
 
 ## 使用流程
@@ -40,6 +40,9 @@ uv run sync --extra dev
 
 ```bash
 uv run main.py rename --dir ./你的发票文件夹 --excel ./你的合同号索引表.xlsx
+
+# 加 -v 可以看到详细处理过程，方便排查问题
+uv run main.py -v rename --dir ./你的发票文件夹 --excel ./你的合同号索引表.xlsx
 ```
 
 工具会：
@@ -52,6 +55,9 @@ uv run main.py rename --dir ./你的发票文件夹 --excel ./你的合同号索
 
 ```bash
 uv run main.py verify --dir ./你的发票文件夹 --excel ./你的发票验证表.xlsx
+
+# 加 -v 可以看到每个字段的比对详情和置信度
+uv run main.py -v verify --dir ./你的发票文件夹 --excel ./你的发票验证表.xlsx
 ```
 
 工具会：
@@ -88,3 +94,17 @@ uv run pytest tests/test_contract.py -v
 # 跑某个测试
 uv run pytest -k test_extract_non_sz -v
 ```
+
+## 调试与问题排查
+
+如果运行出问题，加 `-v` 参数获取详细日志：
+
+```bash
+uv run main.py -v rename --dir ./pdfs --excel ./合同号索引表.xlsx 2>&1 | tee debug.log
+```
+
+把 `debug.log` 文件发过来，就能快速定位问题。日志会显示：
+- 每个PDF文件被识别为哪种类型
+- OCR提取了哪些字段、置信度是多少
+- 合同号匹配是否成功
+- 哪些字段不一致、是否自动修复
