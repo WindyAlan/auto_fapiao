@@ -92,8 +92,8 @@ def extract_invoice_fields(text: str) -> dict:
     if m:
         fields["total_amount"] = m.group(1).replace(",", "")
 
-    # 乙方合同号（备注栏）
-    m = re.search(r"备注[：:]?\s*.*?(\d{13}[A-Z])", text, re.DOTALL)
+    # 乙方合同号（备注栏）— 数字+大写字母，长度不限
+    m = re.search(r"备注[：:]?\s*.*?(\d+[A-Z])", text, re.DOTALL)
     if m:
         fields["party_b_id"] = m.group(1)
 
