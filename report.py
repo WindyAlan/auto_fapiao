@@ -69,14 +69,24 @@ def generate_verify_report(results: list[VerifyResult], output_excel: str) -> st
     lines.append(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("=" * 50)
 
-    correct = [r for r in results if not r.diffs]
+    correct = [r for r in results if not r.diffs and not r.filled]
+    filled = [r for r in results if r.filled]
     diff_found = [r for r in results if r.diffs]
     manual = [r for r in results if r.needs_manual]
 
     lines.append(f"\n总计: {len(results)} 个文件")
     lines.append(f"  全部正确: {len(correct)}")
+    lines.append(f"  OCR填充了信息: {len(filled)}")
     lines.append(f"  有差异: {len(diff_found)}")
     lines.append(f"  需手动核查: {len(manual)}")
+
+    if filled:
+        lines.append(f"\n{'─' * 50}")
+        lines.append("【OCR自动填充】")
+        for r in filled:
+            lines.append(f"  {r.party_a_id} ({r.pdf_file})")
+            for f_desc in r.filled:
+                lines.append(f"    {f_desc}")
 
     if diff_found:
         lines.append(f"\n{'─' * 50}")

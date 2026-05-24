@@ -27,7 +27,7 @@ class VerifyResult:
     pdf_file: str
     party_a_id: str
     diffs: list[FieldDiff] = field(default_factory=list)
-    fixed: bool = False
+    filled: list[str] = field(default_factory=list)  # OCR填充的字段描述
     needs_manual: bool = False
 
 
@@ -114,15 +114,20 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
         diffs = compare_fields(excel_row, ocr_fields, confidence)
 
         # 将OCR识别的发票号和发票日期填入Excel（如果原表为空）
+        filled = []
         row_idx = excel_row.get("_row_idx")
         if row_idx:
-            for field_key, col_letter in [("invoice_no", "CA"), ("invoice_date", "CB")]:
+            for field_key, col_letter, label in [
+                ("invoice_no", "CA", "发票号"),
+                ("invoice_date", "CB", "发票日期"),
+            ]:
                 ocr_val = ocr_fields.get(field_key, "")
                 excel_val = str(excel_row.get(field_key, "")).strip()
                 if ocr_val and not excel_val:
                     col_idx = get_column_index(col_letter)
                     ws.cell(row=row_idx, column=col_idx, value=ocr_val)
                     filled_count += 1
+                    filled.append(f"{label}={ocr_val}")
                     logger.info("填充: %s %s = %s", party_a_id, field_key, ocr_val)
 
         # 标记需要手动核查的差异
@@ -140,6 +145,7 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
             pdf_file=filename,
             party_a_id=party_a_id,
             diffs=diffs,
+            filled=filled,
             needs_manual=needs_manual,
         ))
 
