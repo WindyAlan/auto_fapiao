@@ -9,7 +9,7 @@
 
 ## 环境要求
 
-- **Python 3.12** 或更高版本
+- **Python 3.12**（PaddlePaddle 仅支持 3.12，不支持 3.13+）
 - **uv**（Python包管理工具，[安装方法](https://docs.astral.sh/uv/getting-started/installation/)）
 
 ## 安装

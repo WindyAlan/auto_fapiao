@@ -33,6 +33,6 @@ uv run pytest -k test_name             # Run single test by name
 ## Conventions
 
 - **Offline only** — No network calls. PaddleOCR runs on local CPU.
-- **Python 3.12**, managed by `uv`.
+- **Python 3.12** (pinned: PaddlePaddle only supports 3.12), managed by `uv`.
 - **TDD** — Write failing test first, then implement.
 - **After each commit**: Review if CLAUDE.md and README.md need updates. Update them in the same commit if the change affects architecture, commands, or usage.

@@ -3,7 +3,7 @@ name = "auto-fapiao"
 version = "0.1.0"
 description = "发票自动重命名和校验工具"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "paddleocr>=2.7",
     "paddlepaddle>=2.5",
