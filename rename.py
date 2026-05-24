@@ -31,7 +31,7 @@ def classify_pdf(filename: str) -> tuple[str, str | None]:
     """
     basename = os.path.basename(filename)
     # Type 1: 以数字+大写字母开头（如 2100002601080A_）
-    m = re.match(r"^(\d+[A-Z])_", basename)
+    m = re.match(r"^(\d+[A-Z]+)_", basename)
     if m:
         logger.debug("文件 '%s' → Type1, 乙方合同号=%s", basename, m.group(1))
         return "type1", m.group(1)

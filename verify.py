@@ -58,7 +58,7 @@ def compare_fields(excel_row: dict, ocr_fields: dict, confidence: float) -> list
 def resolve_party_a_id_from_filename(filename: str) -> str | None:
     """从已重命名的文件名中提取甲方合同号"""
     # 匹配 {甲方合同号}-{乙方合同号}_... 格式
-    m = re.match(r"^(.+?)-(\d+[A-Z])_", filename)
+    m = re.match(r"^(.+?)-(\d+[A-Z]+)_", filename)
     if m:
         return m.group(1)
     return None
