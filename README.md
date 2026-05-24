@@ -35,13 +35,15 @@ uv sync --extra dev
 
 ## 使用方式
 
-### 方式一：双击启动 GUI（推荐非技术用户）
+### 方式一：GUI 界面（推荐）
 
-1. 双击 `run.bat`，弹出图形界面窗口
-2. 用 Browse 按钮选择文件夹和 Excel 文件
-3. 点按钮执行，日志实时显示
+```bash
+uv run python gui.pyw
+```
 
-### 方式二：命令行启动
+弹出图形窗口，用 Browse 按钮选择文件夹和 Excel 文件，点按钮执行。
+
+### 方式二：命令行
 
 ```bash
 uv run main.py rename --dir ./你的发票文件夹 --excel ./你的合同号索引表.xlsx
