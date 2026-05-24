@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import shutil
 from dataclasses import dataclass
 
 from contract import load_contract_index
@@ -48,8 +49,16 @@ def extract_invoice_number(filename: str) -> str | None:
     return m.group(1) if m else None
 
 
-def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameResult]:
-    """重命名目录中的PDF文件"""
+def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> tuple[list[RenameResult], str]:
+    """重命名目录中的PDF文件，输出到 {pdf_dir}_Renamed 文件夹。
+
+    Returns:
+        (结果列表, 输出文件夹路径)
+    """
+    output_dir = pdf_dir.rstrip(os.sep) + "_Renamed"
+    os.makedirs(output_dir, exist_ok=True)
+    logger.info("输出目录: %s", output_dir)
+
     pdf_files = [f for f in sorted(os.listdir(pdf_dir)) if f.lower().endswith(".pdf")]
     logger.info("发现 %d 个PDF文件", len(pdf_files))
 
@@ -111,8 +120,8 @@ def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameRes
                 remainder = filename[remainder_start:]
                 new_name = f"{party_a_id}-{party_b_id}_{invoice_no}_{remainder}"
 
-            new_path = os.path.join(pdf_dir, new_name)
-            os.rename(old_path, new_path)
+            new_path = os.path.join(output_dir, new_name)
+            shutil.copy2(old_path, new_path)
             logger.info("重命名: %s → %s", filename, new_name)
             results.append(RenameResult(
                 original_name=filename, new_name=new_name,
@@ -127,4 +136,4 @@ def rename_files(pdf_dir: str, contract_index: dict[str, str]) -> list[RenameRes
                 party_b_id=party_b_id or "", status="error", message=str(e)
             ))
 
-    return results
+    return results, output_dir

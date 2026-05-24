@@ -18,6 +18,9 @@ dev = [
     "pytest-cov",
 ]
 
+[tool.uv]
+index-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

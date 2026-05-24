@@ -20,7 +20,7 @@ def cmd_rename(args):
     logger.info("找到 %d 条合同记录", len(contract_index))
 
     logger.info("扫描目录: %s", args.dir)
-    results = rename_files(args.dir, contract_index)
+    results, output_dir = rename_files(args.dir, contract_index)
 
     success = sum(1 for r in results if r.status == "success")
     skipped = sum(1 for r in results if r.status == "skipped")
@@ -35,6 +35,7 @@ def cmd_rename(args):
             print(f"  - {r.original_name}: {r.message}")
 
     print(f"\n完成: {success} 重命名, {skipped} 跳过, {errors} 错误")
+    print(f"输出目录: {output_dir}")
 
 
 def cmd_verify(args):

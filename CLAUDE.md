@@ -26,7 +26,7 @@ uv run pytest -k test_name             # Run single test by name
 
 - **ocr.py** — PDF text extraction: PyMuPDF text layer first, PaddleOCR fallback for scanned PDFs. Invoice field parsing via regex.
 - **contract.py** — Contract index Excel loading. 甲方合同号 extraction from `YW-xxx` names (SZ prefix → second dash, otherwise → first dash).
-- **rename.py** — PDF classification (Type 1: `2100002601080A_xxx.pdf`, Type 2: `dzfp_xxx.pdf`) and batch rename.
+- **rename.py** — PDF classification (Type 1: `2100002601080A_xxx.pdf`, Type 2: `dzfp_xxx.pdf`) and batch rename. Output to `{dir}_Renamed/` folder (copies files, originals untouched).
 - **verify.py** — Excel vs OCR comparison (columns AF/BZ/CA/CB/CC/CD, rows 4+). Auto-fixes high-confidence (>0.8) mismatches.
 - **excel_utils.py** — Excel column mapping and read/write with openpyxl.
 

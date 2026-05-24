@@ -49,15 +49,17 @@ uv run main.py -v rename --dir ./你的发票文件夹 --excel ./你的合同号
 - 自动识别每个PDF是哪种类型（文件名里有乙方合同号的，还是纯发票编号的）
 - 从PDF里提取需要的信息（如果文件名里没有合同号，会用OCR识别备注栏）
 - 查表找到甲方合同号
-- 重命名文件，格式为 `{甲方合同号}-{乙方合同号}_{其他部分}.pdf`
+- 将重命名后的文件复制到 `{原文件夹名}_Renamed/` 文件夹中，原文件不动
+- 新文件格式为 `{甲方合同号}-{乙方合同号}_{其他部分}.pdf`
 
 ### 第三步：校验发票信息
 
 ```bash
-uv run main.py verify --dir ./你的发票文件夹 --excel ./你的发票验证表.xlsx
+# --dir 指向重命名后的文件夹（{原文件夹}_Renamed）
+uv run main.py verify --dir ./你的发票文件夹_Renamed --excel ./你的发票验证表.xlsx
 
 # 加 -v 可以看到每个字段的比对详情和置信度
-uv run main.py -v verify --dir ./你的发票文件夹 --excel ./你的发票验证表.xlsx
+uv run main.py -v verify --dir ./你的发票文件夹_Renamed --excel ./你的发票验证表.xlsx
 ```
 
 工具会：
@@ -67,6 +69,8 @@ uv run main.py -v verify --dir ./你的发票文件夹 --excel ./你的发票验
 - 如果OCR置信度高（>80%），自动修复Excel里的错误
 - 如果OCR置信度低，提示你手动检查
 - 输出校验报告，告诉你哪些是对的、哪些改了、哪些需要你自己看
+
+> **注意：** 校验前请先运行重命名，校验命令的 `--dir` 指向重命名后的文件夹（`{原文件夹}_Renamed`）。
 
 ## 常见问题
 
