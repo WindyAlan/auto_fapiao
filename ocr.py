@@ -92,10 +92,14 @@ def extract_invoice_fields(text: str) -> dict:
     if m:
         fields["total_amount"] = m.group(1).replace(",", "")
 
-    # 乙方合同号（备注栏）— 数字+大写字母，长度不限
-    m = re.search(r"备注[：:]?\s*.*?(\d+[A-Z])", text, re.DOTALL)
+    # 乙方合同号（备注栏）— 数字+大写字母，可能有空格
+    # 先尝试找"备注"后面的内容
+    m = re.search(r"备注[：:]?\s*.*?(\d+\s*[A-Z])", text, re.DOTALL)
+    if not m:
+        # 兜底：直接在整个文本里找 13 位数字+字母的合同号模式
+        m = re.search(r"(\d{13}\s*[A-Z])", text)
     if m:
-        fields["party_b_id"] = m.group(1)
+        fields["party_b_id"] = m.group(1).replace(" ", "")
 
     logger.debug("提取到发票字段: %s", fields)
     return fields
