@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import shutil
 from dataclasses import dataclass, field
 
 from openpyxl import load_workbook
@@ -64,10 +65,20 @@ def resolve_party_a_id_from_filename(filename: str) -> str | None:
     return None
 
 
-def verify_invoices(pdf_dir: str, excel_path: str) -> list[VerifyResult]:
-    """校验目录中所有PDF发票与Excel数据"""
-    logger.info("打开验证Excel: %s", excel_path)
-    wb = load_workbook(excel_path)
+def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], str]:
+    """校验目录中所有PDF发票与Excel数据。
+
+    Returns:
+        (结果列表, 输出Excel路径)
+    """
+    # 复制原始Excel，输出到 _verified 版本
+    base, ext = os.path.splitext(excel_path)
+    output_excel = f"{base}_verified{ext}"
+    shutil.copy2(excel_path, output_excel)
+    logger.info("已复制Excel到: %s", output_excel)
+
+    logger.info("打开验证Excel: %s", output_excel)
+    wb = load_workbook(output_excel)
     ws = wb.active
     excel_rows = read_invoice_rows(ws)
     logger.info("Excel中读取到 %d 行发票数据", len(excel_rows))
@@ -141,10 +152,10 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> list[VerifyResult]:
         ))
 
     # 保存修复后的Excel
-    wb.save(excel_path)
+    wb.save(output_excel)
     wb.close()
-    logger.info("验证完成，Excel已保存")
-    return results
+    logger.info("验证完成，Excel已保存: %s", output_excel)
+    return results, output_excel
 
 
 def format_report(results: list[VerifyResult]) -> str:

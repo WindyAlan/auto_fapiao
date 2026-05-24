@@ -12,6 +12,7 @@ def setup_logging(verbose: bool):
 def cmd_rename(args):
     from contract import load_contract_index
     from rename import rename_files
+    from report import generate_rename_report
 
     logger = logging.getLogger("rename")
 
@@ -22,31 +23,22 @@ def cmd_rename(args):
     logger.info("扫描目录: %s", args.dir)
     results, output_dir = rename_files(args.dir, contract_index)
 
-    success = sum(1 for r in results if r.status == "success")
-    skipped = sum(1 for r in results if r.status == "skipped")
-    errors = sum(1 for r in results if r.status == "error")
-
-    for r in results:
-        if r.status == "success":
-            print(f"  ✓ {r.original_name} → {r.new_name}")
-        elif r.status == "error":
-            print(f"  ✗ {r.original_name}: {r.message}")
-        else:
-            print(f"  - {r.original_name}: {r.message}")
-
-    print(f"\n完成: {success} 重命名, {skipped} 跳过, {errors} 错误")
-    print(f"输出目录: {output_dir}")
+    report = generate_rename_report(results, output_dir)
+    print(report)
 
 
 def cmd_verify(args):
-    from verify import format_report, verify_invoices
+    from report import generate_verify_report
+    from verify import verify_invoices
 
     logger = logging.getLogger("verify")
 
     logger.info("校验发票: %s", args.dir)
     logger.info("对照Excel: %s", args.excel)
-    results = verify_invoices(args.dir, args.excel)
-    print(format_report(results))
+    results, output_excel = verify_invoices(args.dir, args.excel)
+
+    report = generate_verify_report(results, output_excel)
+    print(report)
 
 
 def cmd_generate_test_data(args):
