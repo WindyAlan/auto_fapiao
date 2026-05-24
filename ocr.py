@@ -32,10 +32,21 @@ def _extract_text_layer(pdf_path: str) -> str:
 
 def ocr_pdf(pdf_path: str) -> str:
     """将PDF转图片后用PaddleOCR识别"""
-    from paddleocr import PaddleOCR
+    try:
+        from paddleocr import PaddleOCR
+    except ImportError as e:
+        logger.error("PaddleOCR导入失败: %s", e)
+        logger.error("请确认已安装 paddlepaddle 和 paddleocr: uv pip install -r requirements.txt")
+        raise
 
-    logger.info("初始化PaddleOCR...")
-    ocr = PaddleOCR(lang="ch")
+    try:
+        logger.info("初始化PaddleOCR...")
+        ocr = PaddleOCR(lang="ch")
+    except Exception as e:
+        logger.error("PaddleOCR初始化失败: %s", e)
+        logger.error("Windows用户请确认已安装 Visual C++ Redistributable (vc_redist.x64.exe)")
+        raise
+
     doc = fitz.open(pdf_path)
     all_text = []
     page_count = len(doc)
@@ -92,9 +103,12 @@ def extract_invoice_fields(text: str) -> dict:
 
 def get_ocr_confidence(pdf_path: str) -> float:
     """获取OCR识别的平均置信度"""
-    from paddleocr import PaddleOCR
-
-    ocr = PaddleOCR(lang="ch")
+    try:
+        from paddleocr import PaddleOCR
+        ocr = PaddleOCR(lang="ch")
+    except Exception as e:
+        logger.error("OCR置信度获取失败: %s", e)
+        return 0.0
     doc = fitz.open(pdf_path)
     confidences = []
 

@@ -12,6 +12,10 @@
 - **Python 3.12**（PaddlePaddle 仅支持 3.12，不支持 3.13+）
 - **uv**（Python包管理工具，[安装方法](https://docs.astral.sh/uv/getting-started/installation/)）
 
+### Windows 额外要求
+
+- **Visual C++ Redistributable** — PaddlePaddle 依赖 VC++ 运行时。如果安装后运行报 DLL 缺失错误，请安装 [vc_redist.x64.exe](https://aka.ms/vs/17/release/vc_redist.x64.exe)（微软官方下载，约2MB）
+
 ## 安装
 
 ```bash
@@ -24,6 +28,8 @@ uv sync
 # 如果需要跑测试，额外装开发依赖
 uv sync --extra dev
 ```
+
+> **Windows 备选安装方式：** 如果 `uv sync` 很慢，可以用 `uv pip install -r requirements.txt` 直接安装依赖。
 
 ## 使用流程
 
