@@ -18,8 +18,8 @@ MOCK_INVOICES = [
         "party_a_id": "7871Y00200172",
         "party_b_id": "2100002601080A",
         "billing_qty": 1265,
-        "invoice_no": "26317000001473818247",
-        "invoice_date": "2026/05/19",
+        "invoice_no": "",  # 空，由OCR填充
+        "invoice_date": "",  # 空，由OCR填充
         "tax_amount": 256308.48,
         "total_amount": 2227912.18,
     },
@@ -36,11 +36,24 @@ MOCK_INVOICES = [
         "party_a_id": "7871Y00200344H",
         "party_b_id": "2100002602040D",
         "billing_qty": 1127,
-        "invoice_no": "26317000001473818221",
-        "invoice_date": "2026/05/19",
+        "invoice_no": "",  # 空，由OCR填充
+        "invoice_date": "",  # 空，由OCR填充
         "tax_amount": 228347.56,
         "total_amount": 1984867.22,
     },
+]
+
+# PDF中实际包含的发票号（OCR会识别这些，填入Excel中为空的行）
+PDF_INVOICE_NOS = [
+    "26317000001473818247",
+    "26317000001473818224",
+    "26317000001473818221",
+]
+
+PDF_INVOICE_DATES = [
+    "2026/05/19",
+    "2026/05/19",
+    "2026/05/19",
 ]
 
 
@@ -99,21 +112,40 @@ def _create_mock_pdf(path: str, party_b_id: str, invoice_no: str,
     doc = fitz.open()
     page = doc.new_page()
 
-    # 构造发票文本（使用ASCII因为默认字体不支持中文）
+    # 将日期格式 2026/05/19 转为 2026年05月19日
+    date_parts = invoice_date.split("/")
+    date_cn = f"{date_parts[0]}年{date_parts[1]}月{date_parts[2]}日" if len(date_parts) == 3 else invoice_date
+
+    # 构造发票文本（中文，匹配OCR正则）
     text = (
-        f"Invoice No: {invoice_no}\n"
-        f"Date: {invoice_date}\n"
-        f"Quantity: 10000\n"
-        f"Amount: {total_amount}\n"
-        f"Tax Rate: 13%\n"
-        f"Tax: {tax_amount}\n"
-        f"Total: {total_amount}\n"
-        f"Remark:\n"
+        f"发票号码：{invoice_no}\n"
+        f"开票日期：{date_cn}\n"
+        f"数量：10000\n"
+        f"金额：{total_amount}\n"
+        f"税率：13%\n"
+        f"税额：{tax_amount}\n"
+        f"价税合计：{total_amount}\n"
+        f"备注：\n"
         f"{party_b_id}\n"
-        f"Party B Contract"
     )
 
-    page.insert_text((50, 50), text, fontsize=10)
+    # 尝试使用系统中文字体
+    font_candidates = [
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+    ]
+    font_file = None
+    for fp in font_candidates:
+        if os.path.exists(fp):
+            font_file = fp
+            break
+
+    if font_file:
+        page.insert_text((50, 50), text, fontsize=10, fontname="china-ss", fontfile=font_file)
+    else:
+        # fallback: 使用默认字体（中文可能显示为方块，但文本层仍有内容）
+        page.insert_text((50, 50), text, fontsize=10)
 
     doc.save(path)
     doc.close()
@@ -134,25 +166,25 @@ def generate_all_test_data(output_dir: str):
     _create_invoice_excel(invoice_excel)
 
     # 生成Type 1 PDF
-    for inv in MOCK_INVOICES:
+    for i, inv in enumerate(MOCK_INVOICES):
         filename = f"{inv['party_b_id']}_引望智能技术有限公司_20260519.pdf"
         _create_mock_pdf(
             os.path.join(pdf_dir, filename),
             party_b_id=inv["party_b_id"],
-            invoice_no=inv["invoice_no"],
-            invoice_date=inv["invoice_date"],
+            invoice_no=PDF_INVOICE_NOS[i],
+            invoice_date=PDF_INVOICE_DATES[i],
             tax_amount=str(inv["tax_amount"]),
             total_amount=str(inv["total_amount"]),
         )
 
     # 生成Type 2 PDF
-    for inv in MOCK_INVOICES:
-        filename = f"dzfp_{inv['invoice_no']}_引望智能技术有限公司_20260519.pdf"
+    for i, inv in enumerate(MOCK_INVOICES):
+        filename = f"dzfp_{PDF_INVOICE_NOS[i]}_引望智能技术有限公司_20260519.pdf"
         _create_mock_pdf(
             os.path.join(pdf_dir, filename),
             party_b_id=inv["party_b_id"],
-            invoice_no=inv["invoice_no"],
-            invoice_date=inv["invoice_date"],
+            invoice_no=PDF_INVOICE_NOS[i],
+            invoice_date=PDF_INVOICE_DATES[i],
             tax_amount=str(inv["tax_amount"]),
             total_amount=str(inv["total_amount"]),
         )

@@ -61,7 +61,8 @@ def generate_rename_report(results: list[RenameResult], output_dir: str) -> str:
     return report
 
 
-def generate_verify_report(results: list[VerifyResult], output_excel: str) -> str:
+def generate_verify_report(results: list[VerifyResult], output_excel: str,
+                           pdf_dir: str = "") -> str:
     """生成校验报告并保存到文件，返回报告内容"""
     lines = []
     lines.append("=" * 50)
@@ -69,7 +70,7 @@ def generate_verify_report(results: list[VerifyResult], output_excel: str) -> st
     lines.append(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("=" * 50)
 
-    correct = [r for r in results if not r.diffs and not r.filled]
+    correct = [r for r in results if not r.diffs]
     filled = [r for r in results if r.filled]
     diff_found = [r for r in results if r.diffs]
     manual = [r for r in results if r.needs_manual]
@@ -87,6 +88,24 @@ def generate_verify_report(results: list[VerifyResult], output_excel: str) -> st
             lines.append(f"  {r.party_a_id} ({r.pdf_file})")
             for f_desc in r.filled:
                 lines.append(f"    {f_desc}")
+
+    filled_pdfs = [r for r in results if r.filled and r.invoice_no]
+    if filled_pdfs and pdf_dir:
+        import re as _re
+        parent_dir = os.path.dirname(pdf_dir)
+        dir_basename = os.path.basename(pdf_dir)
+        if dir_basename.endswith("_Renamed"):
+            filled_dir_name = dir_basename[:-len("_Renamed")] + "_filled"
+        else:
+            filled_dir_name = dir_basename + "_filled"
+        filled_dir = os.path.join(parent_dir, filled_dir_name)
+        lines.append(f"\n{'─' * 50}")
+        lines.append(f"【已复制到_filled文件夹】({len(filled_pdfs)} 个)")
+        lines.append(f"  目录: {filled_dir}")
+        for r in filled_pdfs:
+            safe_name = _re.sub(r'[\\/:*?"<>|]', '_', r.invoice_no)
+            lines.append(f"  {r.pdf_file}")
+            lines.append(f"    → {safe_name}.pdf")
 
     if diff_found:
         lines.append(f"\n{'─' * 50}")
@@ -115,6 +134,9 @@ def generate_verify_report(results: list[VerifyResult], output_excel: str) -> st
         lines.append("【全部正确】")
         for r in correct:
             lines.append(f"  {r.party_a_id} ({r.pdf_file})")
+            if r.filled:
+                for f_desc in r.filled:
+                    lines.append(f"    {f_desc}")
 
     lines.append(f"\n{'=' * 50}")
     lines.append(f"输出Excel: {output_excel}")

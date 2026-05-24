@@ -37,7 +37,7 @@ def cmd_verify(args):
     logger.info("对照Excel: %s", args.excel)
     results, output_excel = verify_invoices(args.dir, args.excel)
 
-    report = generate_verify_report(results, output_excel)
+    report = generate_verify_report(results, output_excel, pdf_dir=args.dir)
     print(report)
 
 

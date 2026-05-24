@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import shutil
 from dataclasses import dataclass, field
 
 from openpyxl import load_workbook
@@ -28,6 +29,7 @@ class VerifyResult:
     party_a_id: str
     diffs: list[FieldDiff] = field(default_factory=list)
     filled: list[str] = field(default_factory=list)  # OCR填充的字段描述
+    invoice_no: str = ""  # OCR识别的发票号（用于重命名到_filled文件夹）
     needs_manual: bool = False
 
 
@@ -146,6 +148,7 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
             party_a_id=party_a_id,
             diffs=diffs,
             filled=filled,
+            invoice_no=ocr_fields.get("invoice_no", ""),
             needs_manual=needs_manual,
         ))
 
@@ -161,12 +164,37 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
         wb2 = load_workbook(xlsm_path)
         wb2.save(xlsx_path)
         wb2.close()
+        output_xlsx = xlsx_path
         logger.info("验证完成，填充了 %d 个字段", filled_count)
         logger.info("  .xlsm 版本: %s", xlsm_path)
         logger.info("  .xlsx 版本: %s", xlsx_path)
-        return results, xlsx_path
     else:
         wb.save(output_excel)
         wb.close()
+        output_xlsx = output_excel
         logger.info("验证完成，填充了 %d 个字段，已保存: %s", filled_count, output_excel)
-        return results, output_excel
+
+    # 将填充了信息的PDF复制到_filled文件夹，以发票号重命名
+    filled_pdfs = [r for r in results if r.filled and r.invoice_no]
+    if filled_pdfs:
+        parent_dir = os.path.dirname(pdf_dir)
+        dir_basename = os.path.basename(pdf_dir)
+        # 将 _Renamed 替换为 _filled，如果没有 _Renamed 后缀则加 _filled
+        if dir_basename.endswith("_Renamed"):
+            filled_dir_name = dir_basename[:-len("_Renamed")] + "_filled"
+        else:
+            filled_dir_name = dir_basename + "_filled"
+        filled_dir = os.path.join(parent_dir, filled_dir_name)
+        os.makedirs(filled_dir, exist_ok=True)
+
+        for r in filled_pdfs:
+            src = os.path.join(pdf_dir, r.pdf_file)
+            # 清理发票号中的非法文件名字符
+            safe_name = re.sub(r'[\\/:*?"<>|]', '_', r.invoice_no)
+            dst = os.path.join(filled_dir, f"{safe_name}.pdf")
+            shutil.copy2(src, dst)
+            logger.info("填充文件: %s → %s", r.pdf_file, dst)
+
+        logger.info("已将 %d 个填充发票复制到: %s", len(filled_pdfs), filled_dir)
+
+    return results, output_xlsx

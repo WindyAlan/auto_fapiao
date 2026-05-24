@@ -35,10 +35,23 @@ def test_full_workflow():
 
         # 任务2：校验（校验输出目录中的重命名文件）
         verify_results, output_excel = verify_invoices(output_dir, data["invoice_excel"])
-        verify_report = generate_verify_report(verify_results, output_excel)
+        verify_report = generate_verify_report(verify_results, output_excel, pdf_dir=output_dir)
         assert "发票校验报告" in verify_report
         assert output_excel.endswith("_Verified.xlsx")
         assert os.path.exists(output_excel)
+
+        # 验证_filled文件夹
+        filled_dir = os.path.join(tmp_dir, "pdfs_filled")
+        assert os.path.isdir(filled_dir), f"_filled文件夹未创建: {filled_dir}"
+
+        # 检查_filled中的文件：有2个发票被填充（invoice_no为空的）
+        filled_files = [f for f in os.listdir(filled_dir) if f.endswith(".pdf")]
+        assert len(filled_files) == 2, f"期望2个填充文件，实际: {filled_files}"
+
+        # 文件名应该是发票号.pdf
+        for f in filled_files:
+            name_without_ext = f[:-4]  # 去掉 .pdf
+            assert name_without_ext.isdigit(), f"文件名应为纯数字发票号: {f}"
 
     finally:
         shutil.rmtree(tmp_dir)
