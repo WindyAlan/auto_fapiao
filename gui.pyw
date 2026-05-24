@@ -81,7 +81,7 @@ class App:
                 env = os.environ.copy()
                 env["PYTHONIOENCODING"] = "utf-8"
                 result = subprocess.run(
-                    cmd, capture_output=True, text=True, env=env
+                    cmd, capture_output=True, encoding="utf-8", errors="replace", env=env
                 )
                 # Windows 终端可能是 GBK，尝试解码
                 stdout = result.stdout or ""
