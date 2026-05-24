@@ -1,12 +1,11 @@
 import logging
 import os
 import re
-import shutil
 from dataclasses import dataclass, field
 
 from openpyxl import load_workbook
 
-from excel_utils import COLUMN_MAP, get_column_index, read_invoice_rows, write_cell
+from excel_utils import read_invoice_rows
 from ocr import extract_invoice_fields, extract_text_from_pdf, get_ocr_confidence
 
 logger = logging.getLogger(__name__)
@@ -65,20 +64,10 @@ def resolve_party_a_id_from_filename(filename: str) -> str | None:
     return None
 
 
-def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], str]:
-    """校验目录中所有PDF发票与Excel数据。
-
-    Returns:
-        (结果列表, 输出Excel路径)
-    """
-    # 复制原始Excel，输出到 _verified 版本
-    base, ext = os.path.splitext(excel_path)
-    output_excel = f"{base}_verified{ext}"
-    shutil.copy2(excel_path, output_excel)
-    logger.info("已复制Excel到: %s", output_excel)
-
-    logger.info("打开验证Excel: %s", output_excel)
-    wb = load_workbook(output_excel)
+def verify_invoices(pdf_dir: str, excel_path: str) -> list[VerifyResult]:
+    """校验目录中所有PDF发票与Excel数据（只读Excel，不修改）"""
+    logger.info("打开验证Excel: %s", excel_path)
+    wb = load_workbook(excel_path, read_only=True)
     ws = wb.active
     excel_rows = read_invoice_rows(ws)
     logger.info("Excel中读取到 %d 行发票数据", len(excel_rows))
@@ -116,26 +105,10 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
 
         diffs = compare_fields(excel_row, ocr_fields, confidence)
 
-        # 自动修复高置信度的差异
-        fixed = False
-        needs_manual = False
+        # 标记需要手动核查的差异
+        needs_manual = bool(diffs)
         for diff in diffs:
-            if diff.confidence > CONFIDENCE_THRESHOLD:
-                field_key = {
-                    "发票号": "invoice_no",
-                    "发票日期": "invoice_date",
-                    "税金金额": "tax_amount",
-                    "含税金额": "total_amount",
-                }.get(diff.field_name)
-                if field_key:
-                    col_letter = COLUMN_MAP[field_key]
-                    write_cell(ws, excel_row["_row_idx"], col_letter, diff.ocr_value)
-                    diff.fixed = True
-                    fixed = True
-                    logger.info("自动修复: %s %s, '%s' → '%s' (置信度=%.3f)",
-                                party_a_id, diff.field_name, diff.excel_value, diff.ocr_value, confidence)
-            else:
-                needs_manual = True
+            if diff.confidence <= CONFIDENCE_THRESHOLD:
                 logger.warning("需手动核查: %s %s, Excel='%s' OCR='%s' (置信度=%.3f, 低于阈值%.1f)",
                                party_a_id, diff.field_name, diff.excel_value, diff.ocr_value,
                                confidence, CONFIDENCE_THRESHOLD)
@@ -147,15 +120,12 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
             pdf_file=filename,
             party_a_id=party_a_id,
             diffs=diffs,
-            fixed=fixed,
             needs_manual=needs_manual,
         ))
 
-    # 保存修复后的Excel
-    wb.save(output_excel)
     wb.close()
-    logger.info("验证完成，Excel已保存: %s", output_excel)
-    return results, output_excel
+    logger.info("验证完成，共校验 %d 个文件", len(results))
+    return results
 
 
 def format_report(results: list[VerifyResult]) -> str:

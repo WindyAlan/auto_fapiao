@@ -61,7 +61,7 @@ def generate_rename_report(results: list[RenameResult], output_dir: str) -> str:
     return report
 
 
-def generate_verify_report(results: list[VerifyResult], output_excel: str) -> str:
+def generate_verify_report(results: list[VerifyResult], excel_path: str) -> str:
     """生成校验报告并保存到文件，返回报告内容"""
     lines = []
     lines.append("=" * 50)
@@ -70,22 +70,21 @@ def generate_verify_report(results: list[VerifyResult], output_excel: str) -> st
     lines.append("=" * 50)
 
     correct = [r for r in results if not r.diffs]
-    fixed = [r for r in results if r.fixed]
+    diff_found = [r for r in results if r.diffs]
     manual = [r for r in results if r.needs_manual]
 
     lines.append(f"\n总计: {len(results)} 个文件")
     lines.append(f"  全部正确: {len(correct)}")
-    lines.append(f"  已自动修复: {len(fixed)}")
+    lines.append(f"  有差异: {len(diff_found)}")
     lines.append(f"  需手动核查: {len(manual)}")
 
-    if fixed:
+    if diff_found:
         lines.append(f"\n{'─' * 50}")
-        lines.append("【已自动修复】")
-        for r in fixed:
+        lines.append("【有差异 - 请人工确认】")
+        for r in diff_found:
             lines.append(f"  {r.party_a_id} ({r.pdf_file})")
             for diff in r.diffs:
-                if diff.fixed:
-                    lines.append(f"    {diff.field_name}: '{diff.excel_value}' → '{diff.ocr_value}' (置信度: {diff.confidence:.1%})")
+                lines.append(f"    {diff.field_name}: Excel='{diff.excel_value}', OCR='{diff.ocr_value}' (置信度: {diff.confidence:.1%})")
 
     if manual:
         lines.append(f"\n{'─' * 50}")
@@ -108,14 +107,12 @@ def generate_verify_report(results: list[VerifyResult], output_excel: str) -> st
             lines.append(f"  {r.party_a_id} ({r.pdf_file})")
 
     lines.append(f"\n{'=' * 50}")
-    lines.append(f"输出Excel: {output_excel}")
+    lines.append(f"输入Excel: {excel_path}")
 
     report = "\n".join(lines)
 
     # 保存报告文件到Excel同目录
-    report_path = os.path.splitext(output_excel)[0].replace("_verified", "") + "_verify_report.txt"
-    # 修正路径：报告放在Excel同目录
-    report_path = os.path.join(os.path.dirname(output_excel), "verify_report.txt")
+    report_path = os.path.join(os.path.dirname(excel_path), "verify_report.txt")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
     logger.info("校验报告已保存: %s", report_path)

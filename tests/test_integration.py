@@ -34,10 +34,10 @@ def test_full_workflow():
         assert os.path.exists(os.path.join(output_dir, "rename_report.txt"))
 
         # 任务2：校验（校验输出目录中的重命名文件）
-        verify_results, output_excel = verify_invoices(output_dir, data["invoice_excel"])
-        verify_report = generate_verify_report(verify_results, output_excel)
+        verify_results = verify_invoices(output_dir, data["invoice_excel"])
+        verify_report = generate_verify_report(verify_results, data["invoice_excel"])
         assert "发票校验报告" in verify_report
-        assert output_excel.endswith("_verified.xlsx")
+        assert os.path.exists(os.path.join(os.path.dirname(data["invoice_excel"]), "verify_report.txt"))
 
     finally:
         shutil.rmtree(tmp_dir)
