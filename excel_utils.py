@@ -43,6 +43,7 @@ def read_invoice_rows(ws) -> list[dict]:
             "invoice_date": str(row[get_column_index("CB") - 1].value or ""),
             "tax_amount": str(row[get_column_index("CC") - 1].value or ""),
             "total_amount": str(row[get_column_index("CD") - 1].value or ""),
+            "_row_idx": row[0].row,
         })
     return rows
 

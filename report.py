@@ -61,7 +61,7 @@ def generate_rename_report(results: list[RenameResult], output_dir: str) -> str:
     return report
 
 
-def generate_verify_report(results: list[VerifyResult], excel_path: str) -> str:
+def generate_verify_report(results: list[VerifyResult], output_excel: str) -> str:
     """生成校验报告并保存到文件，返回报告内容"""
     lines = []
     lines.append("=" * 50)
@@ -107,12 +107,12 @@ def generate_verify_report(results: list[VerifyResult], excel_path: str) -> str:
             lines.append(f"  {r.party_a_id} ({r.pdf_file})")
 
     lines.append(f"\n{'=' * 50}")
-    lines.append(f"输入Excel: {excel_path}")
+    lines.append(f"输出Excel: {output_excel}")
 
     report = "\n".join(lines)
 
     # 保存报告文件到Excel同目录
-    report_path = os.path.join(os.path.dirname(excel_path), "verify_report.txt")
+    report_path = os.path.join(os.path.dirname(output_excel), "verify_report.txt")
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
     logger.info("校验报告已保存: %s", report_path)

@@ -27,7 +27,7 @@ uv run pytest -k test_name             # Run single test by name
 - **ocr.py** — PDF text extraction: PyMuPDF text layer first, PaddleOCR fallback for scanned PDFs. Invoice field parsing via regex.
 - **contract.py** — Contract index Excel loading. 甲方合同号 extraction from `YW-xxx` names (SZ prefix → second dash, otherwise → first dash).
 - **rename.py** — PDF classification (Type 1: `2100002601080A_xxx.pdf`, Type 2: `dzfp_xxx.pdf`) and batch rename. Output to `{dir}_Renamed/` folder (copies files, originals untouched).
-- **verify.py** — Excel vs OCR comparison (columns AF/BZ/CA/CB/CC/CD, rows 4+). Read-only, no Excel modification. Results in text report only.
+- **verify.py** — Excel vs OCR comparison (columns AF/BZ/CA/CB/CC/CD, rows 4+). Fills empty invoice_no/invoice_date from OCR. Saves to `{name}_Verified.xlsx`.
 - **report.py** — Generates text reports after rename/verify steps, saved as `rename_report.txt` and `verify_report.txt`.
 - **excel_utils.py** — Excel column mapping and read-only access with openpyxl.
 - **gui.pyw** — tkinter GUI launcher. Double-click `run.bat` to open. File browser dialogs for folder/file selection.
