@@ -30,18 +30,19 @@ def get_column_index(col_letter: str) -> int:
 
 def read_invoice_rows(ws) -> list[dict]:
     """从工作表中读取发票数据行（从DATA_START_ROW开始）"""
+    max_col = get_column_index("CD")  # 确保读到CD列
     rows = []
-    for row in ws.iter_rows(min_row=DATA_START_ROW):
+    for row in ws.iter_rows(min_row=DATA_START_ROW, max_col=max_col):
         party_a_id = row[get_column_index("AF") - 1].value
         if not party_a_id:
             continue
         rows.append({
             "party_a_id": str(party_a_id),
-            "billing_qty": row[get_column_index("BZ") - 1].value,
-            "invoice_no": row[get_column_index("CA") - 1].value,
-            "invoice_date": row[get_column_index("CB") - 1].value,
-            "tax_amount": row[get_column_index("CC") - 1].value,
-            "total_amount": row[get_column_index("CD") - 1].value,
+            "billing_qty": str(row[get_column_index("BZ") - 1].value or ""),
+            "invoice_no": str(row[get_column_index("CA") - 1].value or ""),
+            "invoice_date": str(row[get_column_index("CB") - 1].value or ""),
+            "tax_amount": str(row[get_column_index("CC") - 1].value or ""),
+            "total_amount": str(row[get_column_index("CD") - 1].value or ""),
             "_row_idx": row[0].row,  # 记录行号用于回写
         })
     return rows
