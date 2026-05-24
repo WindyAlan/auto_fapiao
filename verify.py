@@ -144,7 +144,23 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
         ))
 
     # 保存为新Excel文件
-    wb.save(output_excel)
-    wb.close()
-    logger.info("验证完成，填充了 %d 个字段，已保存: %s", filled_count, output_excel)
-    return results, output_excel
+    # 如果原文件是 .xlsm，同时保存 .xlsm 和 .xlsx 两份
+    base, ext = os.path.splitext(excel_path)
+    if ext.lower() == ".xlsm":
+        xlsm_path = f"{base}_Verified.xlsm"
+        xlsx_path = f"{base}_Verified.xlsx"
+        wb.save(xlsm_path)
+        wb.close()
+        # 重新加载 .xlsm 再另存为干净的 .xlsx
+        wb2 = load_workbook(xlsm_path)
+        wb2.save(xlsx_path)
+        wb2.close()
+        logger.info("验证完成，填充了 %d 个字段", filled_count)
+        logger.info("  .xlsm 版本: %s", xlsm_path)
+        logger.info("  .xlsx 版本: %s", xlsx_path)
+        return results, xlsx_path
+    else:
+        wb.save(output_excel)
+        wb.close()
+        logger.info("验证完成，填充了 %d 个字段，已保存: %s", filled_count, output_excel)
+        return results, output_excel
