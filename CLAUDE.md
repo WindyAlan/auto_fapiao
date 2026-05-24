@@ -29,7 +29,8 @@ uv run pytest -k test_name             # Run single test by name
 - **rename.py** — PDF classification (Type 1: `2100002601080A_xxx.pdf`, Type 2: `dzfp_xxx.pdf`) and batch rename. Output to `{dir}_Renamed/` folder (copies files, originals untouched).
 - **verify.py** — Excel vs OCR comparison (columns AF/BZ/CA/CB/CC/CD, rows 4+). Read-only, no Excel modification. Results in text report only.
 - **report.py** — Generates text reports after rename/verify steps, saved as `rename_report.txt` and `verify_report.txt`.
-- **excel_utils.py** — Excel column mapping and read/write with openpyxl.
+- **excel_utils.py** — Excel column mapping and read-only access with openpyxl.
+- **gui.pyw** — tkinter GUI launcher. Double-click `run.bat` to open. File browser dialogs for folder/file selection.
 
 ## Conventions
 
