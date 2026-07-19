@@ -44,3 +44,11 @@ def test_extract_invoice_fields():
     assert fields["tax_amount"] == "3237085.21"
     assert fields["total_amount"] == "28137740.66"
     assert fields["party_b_id"] == "1100002609110C"
+
+
+def test_extract_invoice_fields_collects_all_billing_quantities():
+    """数量字段可重复出现，供同一PO的多行数据逐项校验。"""
+    fields = extract_invoice_fields("数量：3\n数量: 4.5\n数量 3")
+
+    assert fields["billing_qty"] == "10.5"
+    assert [str(value) for value in fields["billing_qty_values"]] == ["3", "4.5", "3"]

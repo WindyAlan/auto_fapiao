@@ -1,5 +1,6 @@
 import logging
 import re
+from decimal import Decimal, InvalidOperation
 
 import fitz
 
@@ -91,6 +92,17 @@ def extract_invoice_fields(text: str) -> dict:
     m = re.search(r"价税合计.*?[\¥￥]\s*([\d,.]+)", text)
     if m:
         fields["total_amount"] = m.group(1).replace(",", "")
+
+    # 一张发票可能包含多个明细行，保留每个数量以便与同一 PO 的多行 Excel 匹配。
+    quantity_values = []
+    for match in re.finditer(r"数量\s*(?:[：:]\s*)?([+-]?\d[\d,]*(?:\.\d+)?)", text):
+        try:
+            quantity_values.append(Decimal(match.group(1).replace(",", "")))
+        except InvalidOperation:
+            logger.warning("无法解析发票数量: %s", match.group(1))
+    if quantity_values:
+        fields["billing_qty_values"] = quantity_values
+        fields["billing_qty"] = str(sum(quantity_values))
 
     # 乙方合同号（备注栏）— 数字+大写字母，可能有空格
     # 先尝试找"备注"后面的内容
