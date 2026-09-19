@@ -101,8 +101,7 @@ def test_verify_fills_all_duplicate_po_rows_and_reconciles_quantities(tmp_path, 
     pdf_dir = tmp_path / "pdfs"
     pdf_dir.mkdir()
     (pdf_dir / "PO-1-123A_invoice.pdf").touch()
-    monkeypatch.setattr("verify.extract_text_from_pdf", lambda _: "ignored")
-    monkeypatch.setattr("verify.get_ocr_confidence", lambda _: 1.0)
+    monkeypatch.setattr("verify.extract_pdf_content", lambda _: ("ignored", 1.0))
     monkeypatch.setattr("verify.extract_invoice_fields", lambda _: {
         "invoice_no": "12345678901234567890",
         "invoice_date": "2026/07/19",
@@ -136,8 +135,7 @@ def test_verify_exports_pdf_with_invoice_no_even_when_prior_matching_fails(tmp_p
     pdf_dir.mkdir()
     (pdf_dir / "PO-1-123A_invoice.pdf").touch()
     (pdf_dir / "unrenamed.pdf").touch()
-    monkeypatch.setattr("verify.extract_text_from_pdf", lambda path: path)
-    monkeypatch.setattr("verify.get_ocr_confidence", lambda _: 1.0)
+    monkeypatch.setattr("verify.extract_pdf_content", lambda path: (path, 1.0))
     monkeypatch.setattr(
         "verify.extract_invoice_fields",
         lambda text: {"invoice_no": "matched" if "PO-1" in text else "unmatched"},

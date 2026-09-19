@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from openpyxl import load_workbook
 
 from excel_utils import COLUMN_MAP, get_column_index, read_invoice_rows
-from ocr import extract_invoice_fields, extract_text_from_pdf, get_ocr_confidence
+from ocr import extract_invoice_fields, extract_pdf_content
 
 logger = logging.getLogger(__name__)
 
@@ -149,9 +149,8 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
     for filename in pdf_files:
         # 先识别发票号，确保未完成重命名或Excel匹配的PDF也能按发票号导出。
         pdf_path = os.path.join(pdf_dir, filename)
-        text = extract_text_from_pdf(pdf_path)
+        text, confidence = extract_pdf_content(pdf_path)
         ocr_fields = extract_invoice_fields(text)
-        confidence = get_ocr_confidence(pdf_path)
 
         party_a_id = resolve_party_a_id_from_filename(filename)
         if not party_a_id:

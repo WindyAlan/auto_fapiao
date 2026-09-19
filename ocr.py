@@ -1,8 +1,10 @@
 import logging
 import re
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
 
 import fitz
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -12,27 +14,32 @@ TEXT_LAYER_THRESHOLD = 50
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """从PDF提取文本。优先用PyMuPDF文本层，失败则fallback到OCR。"""
+    text, _ = extract_pdf_content(pdf_path)
+    return text
+
+
+def extract_pdf_content(pdf_path: str) -> tuple[str, float]:
+    """提取PDF文本及其置信度，避免校验流程对同一文件重复OCR。"""
     logger.debug("提取PDF文本: %s", pdf_path)
     text = _extract_text_layer(pdf_path)
     if len(text) >= TEXT_LAYER_THRESHOLD:
         logger.debug("文本层提取成功，长度=%d", len(text))
-        return text
+        # 文本层无需OCR；字段差异仍会被标记为需要人工核查。
+        return text, 1.0
     logger.info("文本层不足(len=%d)，fallback到OCR: %s", len(text), pdf_path)
-    return ocr_pdf(pdf_path)
+    return _run_ocr(pdf_path)
 
 
 def _extract_text_layer(pdf_path: str) -> str:
     """用PyMuPDF提取PDF文本层"""
-    doc = fitz.open(pdf_path)
-    text_parts = []
-    for page in doc:
-        text_parts.append(page.get_text())
-    doc.close()
+    with fitz.open(pdf_path) as doc:
+        text_parts = [page.get_text() for page in doc]
     return "\n".join(text_parts)
 
 
-def ocr_pdf(pdf_path: str) -> str:
-    """将PDF转图片后用PaddleOCR识别"""
+@lru_cache(maxsize=1)
+def _get_ocr_engine():
+    """延迟初始化并复用OCR模型，避免每个PDF重复加载模型。"""
     try:
         from paddleocr import PaddleOCR
     except ImportError as e:
@@ -42,31 +49,44 @@ def ocr_pdf(pdf_path: str) -> str:
 
     try:
         logger.info("初始化PaddleOCR...")
-        ocr = PaddleOCR(lang="ch")
+        return PaddleOCR(lang="ch")
     except Exception as e:
         logger.error("PaddleOCR初始化失败: %s", e)
         logger.error("Windows用户请确认已安装 Visual C++ Redistributable (vc_redist.x64.exe)")
         raise
 
-    doc = fitz.open(pdf_path)
+
+def _run_ocr(pdf_path: str) -> tuple[str, float]:
+    """将PDF转图片后OCR一次，同时返回文本和平均置信度。"""
+    ocr = _get_ocr_engine()
     all_text = []
-    page_count = len(doc)
-    logger.info("开始OCR识别，共%d页", page_count)
+    confidences = []
+    with fitz.open(pdf_path) as doc:
+        page_count = len(doc)
+        logger.info("开始OCR识别，共%d页", page_count)
+        for page_num, page in enumerate(doc, start=1):
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+            image = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                pix.height, pix.width, pix.n,
+            )
 
-    for page_num in range(page_count):
-        page = doc[page_num]
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-        img_bytes = pix.tobytes("png")
+            logger.debug("OCR第%d/%d页...", page_num, page_count)
+            result = ocr.ocr(image)
+            if result and result[0]:
+                for line in result[0]:
+                    all_text.append(line[1][0])
+                    confidences.append(line[1][1])
 
-        logger.debug("OCR第%d/%d页...", page_num + 1, page_count)
-        result = ocr.ocr(img_bytes)
-        if result and result[0]:
-            for line in result[0]:
-                all_text.append(line[1][0])
-
-    doc.close()
     logger.info("OCR完成，识别到%d段文本", len(all_text))
-    return "\n".join(all_text)
+    confidence = sum(confidences) / len(confidences) if confidences else 0.0
+    logger.debug("OCR置信度: avg=%.3f, samples=%d", confidence, len(confidences))
+    return "\n".join(all_text), confidence
+
+
+def ocr_pdf(pdf_path: str) -> str:
+    """将PDF转图片后用PaddleOCR识别。"""
+    text, _ = _run_ocr(pdf_path)
+    return text
 
 
 def extract_invoice_fields(text: str) -> dict:
@@ -118,26 +138,10 @@ def extract_invoice_fields(text: str) -> dict:
 
 
 def get_ocr_confidence(pdf_path: str) -> float:
-    """获取OCR识别的平均置信度"""
+    """获取OCR识别的平均置信度。"""
     try:
-        from paddleocr import PaddleOCR
-        ocr = PaddleOCR(lang="ch")
+        _, confidence = _run_ocr(pdf_path)
+        return confidence
     except Exception as e:
         logger.error("OCR置信度获取失败: %s", e)
         return 0.0
-    doc = fitz.open(pdf_path)
-    confidences = []
-
-    for page_num in range(len(doc)):
-        page = doc[page_num]
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-        img_bytes = pix.tobytes("png")
-        result = ocr.ocr(img_bytes)
-        if result and result[0]:
-            for line in result[0]:
-                confidences.append(line[1][1])
-
-    doc.close()
-    avg = sum(confidences) / len(confidences) if confidences else 0.0
-    logger.debug("OCR置信度: avg=%.3f, samples=%d", avg, len(confidences))
-    return avg

@@ -2,6 +2,9 @@ import os
 import tempfile
 
 import fitz
+import numpy as np
+
+import ocr
 
 from ocr import extract_text_from_pdf, extract_invoice_fields
 
@@ -25,6 +28,46 @@ def test_extract_text_from_pdf_with_text_layer():
         assert "3237085.21" in result
     finally:
         os.unlink(tmp_path)
+
+
+def test_extract_pdf_content_uses_text_layer_without_starting_ocr(tmp_path, monkeypatch):
+    """文本层足够时，校验不应再为置信度额外执行OCR。"""
+    pdf_path = tmp_path / "text-layer.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "Invoice No: 26317000001473818243" * 3)
+    doc.save(pdf_path)
+    doc.close()
+    monkeypatch.setattr(ocr, "_run_ocr", lambda _: (_ for _ in ()).throw(AssertionError("不应执行OCR")))
+
+    text, confidence = ocr.extract_pdf_content(str(pdf_path))
+
+    assert "26317000001473818243" in text
+    assert confidence == 1.0
+
+
+def test_run_ocr_passes_page_pixels_as_numpy_array(tmp_path, monkeypatch):
+    """PaddleOCR 3.x 需要数组或路径输入，不能传PNG字节。"""
+    pdf_path = tmp_path / "scanned.pdf"
+    doc = fitz.open()
+    doc.new_page()
+    doc.save(pdf_path)
+    doc.close()
+
+    received_images = []
+
+    class FakeOCR:
+        def ocr(self, image):
+            received_images.append(image)
+            return []
+
+    monkeypatch.setattr(ocr, "_get_ocr_engine", lambda: FakeOCR())
+
+    ocr._run_ocr(str(pdf_path))
+
+    assert len(received_images) == 1
+    assert isinstance(received_images[0], np.ndarray)
+    assert received_images[0].dtype == np.uint8
 
 
 def test_extract_invoice_fields():
