@@ -119,3 +119,33 @@ def test_verify_fills_all_duplicate_po_rows_and_reconciles_quantities(tmp_path, 
     assert [output.cell(row=row, column=80).value for row in range(4, 7)] == ["2026/07/19"] * 3
     assert results[0].diffs[-1].field_name == "本次开票数量"
     assert results[0].diffs[-1].fixed is True
+
+
+def test_verify_exports_pdf_with_invoice_no_even_when_prior_matching_fails(tmp_path, monkeypatch):
+    """未完成前序重命名或Excel匹配的PDF，只要识别到发票号仍应导出。"""
+    from verify import verify_invoices
+
+    excel_path = tmp_path / "invoice.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.cell(row=4, column=32, value="PO-1")  # AF
+    wb.save(excel_path)
+    wb.close()
+
+    pdf_dir = tmp_path / "pdfs"
+    pdf_dir.mkdir()
+    (pdf_dir / "PO-1-123A_invoice.pdf").touch()
+    (pdf_dir / "unrenamed.pdf").touch()
+    monkeypatch.setattr("verify.extract_text_from_pdf", lambda path: path)
+    monkeypatch.setattr("verify.get_ocr_confidence", lambda _: 1.0)
+    monkeypatch.setattr(
+        "verify.extract_invoice_fields",
+        lambda text: {"invoice_no": "matched" if "PO-1" in text else "unmatched"},
+    )
+
+    verify_invoices(str(pdf_dir), str(excel_path))
+
+    assert sorted(path.name for path in (tmp_path / "pdfs_filled").glob("*.pdf")) == [
+        "matched.pdf",
+        "unmatched.pdf",
+    ]

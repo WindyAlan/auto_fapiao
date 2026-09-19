@@ -44,9 +44,9 @@ def test_full_workflow():
         filled_dir = os.path.join(tmp_dir, "pdfs_filled")
         assert os.path.isdir(filled_dir), f"_filled文件夹未创建: {filled_dir}"
 
-        # 检查_filled中的文件：有2个发票被填充（invoice_no为空的）
+        # 所有能识别出发票号的PDF都会复制到_filled中，不限于本次回填过字段的发票。
         filled_files = [f for f in os.listdir(filled_dir) if f.endswith(".pdf")]
-        assert len(filled_files) == 2, f"期望2个填充文件，实际: {filled_files}"
+        assert len(filled_files) == 3, f"期望3个重命名文件，实际: {filled_files}"
 
         # 文件名应该是发票号.pdf
         for f in filled_files:

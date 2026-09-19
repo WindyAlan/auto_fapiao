@@ -75,7 +75,7 @@ uv run main.py verify --dir ./你的发票文件夹_Renamed --excel ./你的发�
 - 用OCR识别每张PDF发票的实际内容
 - 逐项对比：发票号、日期、税金、含税金额
 - 将OCR识别的发票号和发票日期填入新Excel文件 `{原文件名}_Verified.xlsx`
-- 将填充了信息的PDF复制到 `{原文件夹}_filled/`，以发票号重命名
+- 将所有识别出发票号的PDF复制到 `{原文件夹}_filled/`，以发票号重命名（不受本次是否回填Excel字段影响）
 - 生成 `verify_report.txt` 报告，告诉你哪些对、哪些有差异
 
 > **注意：** 校验前请先运行重命名，校验的 PDF 文件夹指向重命名后的文件夹（`{原文件夹}_Renamed`）。

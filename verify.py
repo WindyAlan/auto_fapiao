@@ -30,7 +30,7 @@ class VerifyResult:
     party_a_id: str
     diffs: list[FieldDiff] = field(default_factory=list)
     filled: list[str] = field(default_factory=list)  # OCR填充的字段描述
-    invoice_no: str = ""  # OCR识别的发票号（用于重命名到_filled文件夹）
+    invoice_no: str = ""  # OCR识别的发票号（用于重命名并复制到_filled文件夹）
     needs_manual: bool = False
 
 
@@ -147,11 +147,18 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
     ocr_quantities_by_party: dict[str, list[Decimal]] = {}
     results_by_party: dict[str, list[VerifyResult]] = {}
     for filename in pdf_files:
+        # 先识别发票号，确保未完成重命名或Excel匹配的PDF也能按发票号导出。
+        pdf_path = os.path.join(pdf_dir, filename)
+        text = extract_text_from_pdf(pdf_path)
+        ocr_fields = extract_invoice_fields(text)
+        confidence = get_ocr_confidence(pdf_path)
+
         party_a_id = resolve_party_a_id_from_filename(filename)
         if not party_a_id:
             logger.warning("文件名格式无法识别甲方合同号: %s", filename)
             results.append(VerifyResult(
                 pdf_file=filename, party_a_id="",
+                invoice_no=ocr_fields.get("invoice_no", ""),
                 needs_manual=True,
             ))
             continue
@@ -161,14 +168,10 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
             logger.warning("Excel中未找到甲方合同号: %s (文件: %s)", party_a_id, filename)
             results.append(VerifyResult(
                 pdf_file=filename, party_a_id=party_a_id,
+                invoice_no=ocr_fields.get("invoice_no", ""),
                 needs_manual=True,
             ))
             continue
-
-        pdf_path = os.path.join(pdf_dir, filename)
-        text = extract_text_from_pdf(pdf_path)
-        ocr_fields = extract_invoice_fields(text)
-        confidence = get_ocr_confidence(pdf_path)
 
         # 除数量外的既有字段仍以该 PO 的首行作为校验基准；回填则作用于该 PO 的所有行。
         diffs = compare_fields(po_rows[0], ocr_fields, confidence)
@@ -286,9 +289,10 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
         output_xlsx = output_excel
         logger.info("验证完成，填充了 %d 个字段，已保存: %s", filled_count, output_excel)
 
-    # 将填充了信息的PDF复制到_filled文件夹，以发票号重命名
-    filled_pdfs = [r for r in results if r.filled and r.invoice_no]
-    if filled_pdfs:
+    # 将所有识别出发票号的PDF复制到_filled文件夹，以发票号重命名。
+    # 是否在本次验证中回填Excel字段不影响PDF导出。
+    invoice_pdfs = [r for r in results if r.invoice_no]
+    if invoice_pdfs:
         parent_dir = os.path.dirname(pdf_dir)
         dir_basename = os.path.basename(pdf_dir)
         # 将 _Renamed 替换为 _filled，如果没有 _Renamed 后缀则加 _filled
@@ -299,14 +303,14 @@ def verify_invoices(pdf_dir: str, excel_path: str) -> tuple[list[VerifyResult], 
         filled_dir = os.path.join(parent_dir, filled_dir_name)
         os.makedirs(filled_dir, exist_ok=True)
 
-        for r in filled_pdfs:
+        for r in invoice_pdfs:
             src = os.path.join(pdf_dir, r.pdf_file)
             # 清理发票号中的非法文件名字符
             safe_name = re.sub(r'[\\/:*?"<>|]', '_', r.invoice_no)
             dst = os.path.join(filled_dir, f"{safe_name}.pdf")
             shutil.copy2(src, dst)
-            logger.info("填充文件: %s → %s", r.pdf_file, dst)
+            logger.info("重命名发票文件: %s → %s", r.pdf_file, dst)
 
-        logger.info("已将 %d 个填充发票复制到: %s", len(filled_pdfs), filled_dir)
+        logger.info("已将 %d 个发票文件复制并重命名到: %s", len(invoice_pdfs), filled_dir)
 
     return results, output_xlsx
